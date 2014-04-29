@@ -1,0 +1,48 @@
+Welcome to Bedford. It's late at night, about 10pm. You start at the cinema. The cinema is closed today so you'd better go and find something better to do! What path do you choose?
+	1 priory
+	2 mcdonalds
+	3 fire station
+	4 russel park
+	|
+	1 You walk down a long path alongside a river obscured by trees and bushes growing on the river bank.
+	A man carrying fishing equipment is walking in the opposite direction, his face hidden by a worn baseball cap.
+	Haven't you seen him somewhere before?
+		5 say hello
+		6 trip him up
+		6 punch him in the face
+		|
+		5 "Hello!", you offer.
+		He turns his head towards you, his face still hidden by shadow. Muttering under his breath disturblingly, "Piss off, prick", he continues walking.
+		You carry on walking down the path and reach the road leading into Priory Marina, at hot spot for windsurfers, sailers and dog walkers. There's not much to do here, especially not this late.
+		>9
+		6 Before you can stop him, he lunges at you with a knife and it cuts deep. You hold his hands pressing down into your damaged chest and collapse onto the floor. He reclaims his knife and carrys on walking without a word.
+		You lie in darkness, dying. This is the end and you know it. The world fades to black.
+		>9
+	2 Walking over to mcdonalds, you spot a great deal on mcfluries on the window: "Two mcflurries for £1"!
+	"That's amazing!", you think as you sprint across the small carpark and up to the doors of the golden arches.
+	You join the queue and it takes a very long time for you to get to the front.
+	Queing... Queing... More Queing...
+	"Hi, what can I get you?", says Patrick, the newest adition to the team.
+		7 mcflurry
+		8 two mcflurrys
+		|
+		7 "One mcflurry", you announce.
+		"It's two for one pound today, are you interested?"
+		"No, thank you", you decline.
+		Under his breath, Patrick utters, "I'm tired of these god forsaken people"
+		"Excuse me?", you question.
+		"ITS CHEAPER TO HAVE TWO MCFLURYS SO HAVE TWO FOR GOD SAKE", he shouts, walking over to the deap fat fryers. "I'D RATHER FRY MY OWN HEAD THAN HAVE TO DEAL WITH ANOTHER ONE OF YOU STUPID...", he sticks his head into the fryer.
+		You leave the golden arches. Maybe you should get two next time.
+		8 "Two mcflurrys, please!"
+		"That'll be £1, sir", replies Patrick.
+		You go to take out your wallet but you can't seem to find it...
+		"Is there a problem, sir?"
+		"No, there's no problem, I just can't find my wallet."
+		"Oh, well I can't give you two mcflurrys if you don't have your wallet."
+		"I am aware of this.", you say. "Good bye". You leave the golden arches, hungry and embaressed.
+		>0
+	3 Fire station YEAH
+	>0
+	4 WOO RUSSEL PAERK
+	>0
+9 Thanks for playing :)
