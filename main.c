@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct Tempo{
 	int delay; // Delay in milliseconds on average between words
@@ -116,7 +117,7 @@ int selectChoice(struct Option * o, char * command) {
 			expected++;
 		}
 		if (*input == 0 && *expected == 0) { // This means they are equal
-			printf("line: %d\n", cursor->line);
+			DEBUG printf("line: %d\n", cursor->line);
 			return cursor->line; // Return this choice
 		}
 		cursor = cursor->next;
@@ -150,9 +151,16 @@ int readSentence(struct Sentence * s, int current) {
 
 	s = s + current;
 
+	char command[512] = "say ";
+	if(s->text) {
+		strcpy(command + 4, s->text);
+
+		if(fork()==0){system(command);exit(0);}
+	}
+
 	struct Tempo typical;
-	typical.delay = 100;
-	typical.jitter = 1;
+	typical.delay = 1;
+	typical.jitter = 3;
 
 	if (s->tempo == 0) {
 		s->tempo = &typical;
@@ -160,24 +168,37 @@ int readSentence(struct Sentence * s, int current) {
 
 	char * cursor = s->text, * wordStart;
 	int jitter = 0;
+	int letters = 0;
 	wordStart = cursor;
 
+	if (cursor)
 	while (*cursor != 0) {
+		letters = 0;
 		while (*cursor != ' ' && *cursor != 0) {
 			cursor++;
+			letters++;
 			//Move forward to first space
 		}
+
 		//Print between wordStart and cursor
 		while (wordStart < cursor) {
 			putchar(*wordStart);
 			wordStart++;
 		}
+
 		fflush(stdout);
+
+
+		if(wordStart[-1] == '.') usleep(1000000);
+		if(wordStart[-1] == ',') usleep(500000);
+
 		if (*cursor) {cursor++;} else {break;}
 		
 		double d = ((double)rand()/(double)RAND_MAX);
-		jitter = s->tempo->jitter * d * 1000;
+		jitter = ((double)s->tempo->jitter) * d * 1000;
 
+
+		// free(say);
 		usleep(s->tempo->delay * 1000 + jitter);
 	}
 
@@ -185,7 +206,6 @@ int readSentence(struct Sentence * s, int current) {
 	if (s->decision) {
 		struct Option * cursor = s->options.next;
 		int i = 1;
-		DEBUG
 		while(cursor != 0){
 			printf("\t%d: %s", i, cursor->command);
 			cursor = cursor->next;
@@ -194,14 +214,14 @@ int readSentence(struct Sentence * s, int current) {
 		putchar('\n');
 
 		int max = 20; //Max size of commands is here
-		char * command = malloc(sizeof(char) * 10);
+		char * command = malloc(sizeof(char) * max);
 		int choice = 0;
 
 		// Loop until a correct command is typed in
 		do{
-			printf("%s\n", "What is your decision?");
+			DEBUG printf("%s\n", "What is your decision?");
 			fgets(command, max, stdin);
-			flush();
+			// flush();
 			trimNewline(command);
 
 		} while ((choice = selectChoice(&s->options, command)) == -1);
@@ -348,6 +368,6 @@ int main(int argc, char ** argv) {
 
 	// // readSentence(&initialSentence);
 
-	readTGF("test1.tgf");
+	readTGF(argv[1]);
 
 }
