@@ -77,12 +77,10 @@ void initDecision(struct Sentence * s, char * text, struct Tempo * tempo) {
 
 // Add a sentence option
 void addOption(struct Sentence * s, struct Option * o) {
-	printf("%s\n", "ADD OPTION");
 	struct Option * cursor = &s->options, * prev;
 	prev = cursor;
-	while (cursor != 0) {prev = cursor; cursor = cursor->next;printf("%p\n", cursor);}// Get to the end the options
-	prev->next = o;
-	printf("!!!!\n");
+	while (cursor != 0) {prev = cursor; cursor = cursor->next;}//printf("%p\n", cursor);}// Get to the end the options
+	if(prev) prev->next = o; else printf("Failed to add option\n");
 }
 
 void printSentence(struct Sentence * s) {
@@ -97,9 +95,8 @@ void printSentence(struct Sentence * s) {
 
 		struct Option * cursor = s->options.next;
 		int i = 0;
-		printf("%d\n", cursor->line);
 		while(cursor != 0){
-			printf("\t\tOption %d:\t%s\n", cursor->line, cursor->command);
+			printf("\t\tOption [to line:%d]:\t%s\n", cursor->line, cursor->command);
 			cursor = cursor->next;
 			i++;
 		}
@@ -119,11 +116,12 @@ int selectChoice(struct Option * o, char * command) {
 			expected++;
 		}
 		if (*input == 0 && *expected == 0) { // This means they are equal
+			printf("line: %d\n", cursor->line);
 			return cursor->line; // Return this choice
 		}
 		cursor = cursor->next;
 	}
-	return 0; // Tried every option and didn't find one equal
+	return -1; // Tried every option and didn't find one equal
 }
 
 // Put the new end character at the first newline
@@ -139,147 +137,89 @@ void trimNewline(char * s) {
 	}
 }
 
-// void readSentence(struct Sentence * s) {
-// 	if (s == 0){
-// 		DEBUG printf("%s\n", "END OF THE STORY");
-// 		return;
-// 	}
+void flush() {
+	char ch;
+	while ((ch=getchar()) != EOF && ch != '\n');
+}
 
-// 	struct Tempo typical;
-// 	typical.delay = 100;
-// 	typical.jitter = 1;
+int readSentence(struct Sentence * s, int current) {
+	if (s == 0){
+		DEBUG printf("%s\n", "END OF THE STORY");
+		return -1;
+	}
 
-// 	if (s->tempo == 0) {
-// 		s->tempo = &typical;
-// 	}
+	s = s + current;
 
-// 	char * cursor = s->text, * wordStart;
-// 	int jitter = 0;
-// 	wordStart = cursor;
+	struct Tempo typical;
+	typical.delay = 100;
+	typical.jitter = 1;
 
-// 	while (*cursor != 0) {
-// 		while (*cursor != ' ' && *cursor != 0) {
-// 			cursor++;
-// 			//Move forward to first space
-// 		}
-// 		//Print between wordStart and cursor
-// 		while (wordStart < cursor) {
-// 			putchar(*wordStart);
-// 			wordStart++;
-// 		}
-// 		fflush(stdout);
-// 		if (*cursor) {cursor++;} else {break;}
+	if (s->tempo == 0) {
+		s->tempo = &typical;
+	}
+
+	char * cursor = s->text, * wordStart;
+	int jitter = 0;
+	wordStart = cursor;
+
+	while (*cursor != 0) {
+		while (*cursor != ' ' && *cursor != 0) {
+			cursor++;
+			//Move forward to first space
+		}
+		//Print between wordStart and cursor
+		while (wordStart < cursor) {
+			putchar(*wordStart);
+			wordStart++;
+		}
+		fflush(stdout);
+		if (*cursor) {cursor++;} else {break;}
 		
-// 		double d = ((double)rand()/(double)RAND_MAX);
-// 		jitter = s->tempo->jitter * d * 1000;
+		double d = ((double)rand()/(double)RAND_MAX);
+		jitter = s->tempo->jitter * d * 1000;
 
-// 		usleep(s->tempo->delay * 1000 + jitter);
-// 	}
+		usleep(s->tempo->delay * 1000 + jitter);
+	}
 
-// 	putchar('\n');
-// 	if (s->decision) {
-// 		struct Option * cursor = s->options.next;
-// 		int i = 1;
-// 		while(cursor != 0){
-// 			printf("\t%d: %s", i, cursor->command);
-// 			cursor = cursor->next;
-// 			i++;
-// 		}
-// 		putchar('\n');
+	putchar('\n');
+	if (s->decision) {
+		struct Option * cursor = s->options.next;
+		int i = 1;
+		DEBUG
+		while(cursor != 0){
+			printf("\t%d: %s", i, cursor->command);
+			cursor = cursor->next;
+			i++;
+		}
+		putchar('\n');
 
-// 		int max = 10; //Max size of commands is here
-// 		char * command = malloc(sizeof(char) * 10);
-// 		struct Sentence * choice = 0;
+		int max = 20; //Max size of commands is here
+		char * command = malloc(sizeof(char) * 10);
+		int choice = 0;
 
-// 		// Loop until a correct command is typed in
-// 		do{
-// 			printf("%s\n", "What is your decision?");
-// 			fgets(command, max, stdin);
+		// Loop until a correct command is typed in
+		do{
+			printf("%s\n", "What is your decision?");
+			fgets(command, max, stdin);
+			flush();
+			trimNewline(command);
 
-// 			trimNewline(command);
-
-// 		} while ((choice = selectChoice(&s->options ,command)) == 0);
-// 		printf("You chose %s...\n\n", command);
+		} while ((choice = selectChoice(&s->options, command)) == -1);
+		printf("You chose %s...\n\n", command);
 		
-// 		free(command);
-// 		readSentence(choice);
-// 	} else {
-// 		readSentence(s->options.sentence);
-// 	}
-// }
+		free(command);
+		return choice;
+	} else {
+		return current + 1;//Advance the index
+	}
+}
 
-// // Read an array of strings as the lines of a TGF file and return start sentence
-// // For this block at least
-// struct Sentence * readLines(char *** lines, int offset, int indent) {
-// 	printf("readlines\n");
-// 	// lineCursor is now at the start of  ** lines
-// 	char ** lineCursor = *lines + offset;
-// 	DEBUG for (int i = 0; i < indent; i++)printf("\t");
-// 	DEBUG printf("%s '%s'\n", "READING",lineCursor[0] + indent);
-
-// 	struct Sentence * s = malloc(sizeof(struct Sentence));
-
-// 	if (lineCursor[0][indent] == '>') {
-// 		int jump;
-// 		sscanf(lineCursor[0] + indent, ">%d", &jump);
-// 		int i = 0;
-// 		while (lineCursor[i] && lineCursor[i][indent - 1] == '\t') {
-// 			i++;
-// 		}
-// 		return readLines(lines, offset + i, indent - 1);
-// 	}
-// 	if (lineCursor[1]) {
-// 		if (lineCursor[1][indent] == '\t') {
-// 			initDecision(s, lineCursor[0] + indent, 0);// For now, 0 is default tempo
-// 			int i = 1;
-// 			while(lineCursor[i] && lineCursor[i][indent + 1] != '|') {
-// 				DEBUG printf("Option %d: %s\n", i, lineCursor[i]);
-// 				struct Option * o = malloc(sizeof(struct Option));
-
-// 				sscanf(lineCursor[i], "%d", &o->link);
-// 				// DEBUG printf("link %d\n", o->link);
-
-// 				o->command = lineCursor[i] + 3 + indent;
-// 				addOption(s, o);
-// 				i++;
-// 			}
-// 			//No more options, now they need to be populated with their link sentences
-
-// 			char ** decisionLinks = lineCursor + 1;
-
-// 			struct Option * option = s->options.next;
-// 			while(option != 0) {
-// 				for (int i = 0; i < indent; i++)printf("\t");
-// 				DEBUG printf("Option with link %d:\n", option->link);
-// 				int linkFound = 0;
-// 				while (decisionLinks[i] && decisionLinks[i][indent] == '\t') {
-// 					sscanf(decisionLinks[i], "%d", &linkFound);
-
-// 					if (linkFound == option->link) {
-// 						DEBUG for (int i = 0; i < indent; i++)printf("\t");
-// 						DEBUG printf("Link found %d\n", linkFound);
-// 						option->sentence = readLines(lines,  offset + i + 1, indent + 1);
-// 						break;
-// 					}
-// 					i++;
-// 				}
-// 				option = option->next;
-// 			}
-
-// 		} else {
-// 			DEBUG for (int i = 0; i < indent; i++)printf("\t");
-// 			DEBUG printf("%s\n", "NEXT LINE");
-// 			struct Sentence * nextSentence = readLines(lines, offset + 1, indent);
-
-// 			DEBUG printf(" %p\n", nextSentence);
-// 			initSentence(s, lineCursor[0] + indent, 0, nextSentence);
-// 		}
-// 	} else { // End of Lines
-// 		initSentence(s, lineCursor[0] + indent, 0, 0);
-// 		return s;
-// 	}
-// 	return s;
-// }
+void readSentences(struct Sentence * sentences, int numLines) {
+	int next = 0;
+	while (next < numLines) {
+		next = readSentence(sentences, next);
+	}
+}
 
 void readLinesFlat(char *** lines, int numLines) {
 	// Sentences will just be stored in a massive array as they are in lines
@@ -289,36 +229,52 @@ void readLinesFlat(char *** lines, int numLines) {
 	struct Sentence sentences[numLines];
 
 	int sentenceIndex = 0;
+	int numSentences = 0;
 
 	while (sentenceIndex < numLines) {
-		if (lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
+		if (lineCursor[sentenceIndex + 1] != 0 && lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
 			initDecision(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
-			printf("Decision\n");
-			sentenceIndex++;
-			while (lineCursor[sentenceIndex][0] == '\t') {
+			numSentences++;
+			DEBUG printf("Decision at %d \n", sentenceIndex);
+			int optionsIndex = sentenceIndex + 1;
+			while (lineCursor[optionsIndex][0] == '\t') {
+				DEBUG printf("\tOption at %d: ", optionsIndex);
 				struct Option * o = malloc(sizeof(struct Option));
 				o->next = 0;
-				printf("%p\n",&o->command);
-				//Option format:
-				sscanf("\t%d", lineCursor[sentenceIndex], &o->line);
 
-				char * space = &lineCursor[sentenceIndex][1];
+				char * space = &lineCursor[optionsIndex][1];
 				while (*(space++) != ' ');
 
-				o->command = space;
+				*(space - 1) = 0; // The space after the number becomes 0
 
+				sscanf(lineCursor[optionsIndex] + 1, "%d", &o->line);
+				DEBUG printf("[line: %d]", o->line);
+
+				o->line--;
+
+				DEBUG printf("'%s'\n", space);
+
+				o->command = space;
 				addOption(sentences + sentenceIndex, o);
-				printf("Option added\n");
-				sentenceIndex++;
+				DEBUG printf("Option added\n");
+				optionsIndex++;
 			}
-			printSentence(sentences + sentenceIndex);
+			// struct Option * cursor = sentences[sentenceIndex].options.next;
+			// while(cursor != 0){
+			// 	cursor->line -= optionsIndex;
+			// 	cursor = cursor->next;
+			// }
+			DEBUG printSentence(sentences + sentenceIndex);
+			sentenceIndex = optionsIndex;
 		} else {
-			initSentence(sentences + sentenceIndex, lineCursor[0], 0);
-			printSentence(sentences + sentenceIndex);
-			printf("%s\n","next");
+			initSentence(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
+			numSentences++;
+			DEBUG printSentence(sentences + sentenceIndex);
+			DEBUG printf("%s\n","next");
 			sentenceIndex++;
 		}
 	}
+	readSentences(sentences, numLines);
 }
 
 void readTGF(char * fileName) {
