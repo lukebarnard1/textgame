@@ -368,6 +368,10 @@ int main(int argc, char ** argv) {
 
 	// // readSentence(&initialSentence);
 
-	readTGF(argv[1]);
+	if (argc > 1) {
+		readTGF(argv[1]);
+	} else {
+		printf("%s (%d)\n","Please provide a file to play", argc);
+	}
 
 }
