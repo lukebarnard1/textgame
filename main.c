@@ -143,6 +143,52 @@ void flush() {
 	while ((ch=getchar()) != EOF && ch != '\n');
 }
 
+bool unescaped_characters(char * potentialy_unescaped) {
+	// How much memory is required for the new string?
+	// The original size + the number of slashes added
+
+	int count = 0;
+
+	char * cursor = potentialy_unescaped;
+	while (*cursor != 0) {
+		if (*cursor == '\'') {
+			count++;
+		}
+		cursor++;
+	}
+
+	return count;
+}
+
+bool is_character_needing_escaping(char c) {
+	return c == '(';
+}
+
+char * escape(char * unescaped) {
+	int finalSize = sizeof(unescaped) / sizeof(char);
+
+	finalSize += unescaped_characters(unescaped);
+
+	char * escaped = malloc(sizeof(char) * finalSize);
+
+	char * cursor = unescaped; //Move cursor back to beginning
+	char * previous = cursor;
+	while (*cursor != 0) {
+		if (is_character_needing_escaping(*cursor)) {
+			int position = cursor - previous;
+			// printf("%s\n", position);
+			stpncpy(escaped + position, previous, position - 1);
+			escaped[position] = '\\';
+			previous = cursor + 1;
+		}
+		cursor++;
+	}
+
+	// printf("%s -> %s\n", unescaped, escaped);
+
+	return escaped;
+}
+
 int readSentence(struct Sentence * s, int current) {
 	if (s == 0){
 		DEBUG printf("%s\n", "END OF THE STORY");
@@ -152,8 +198,18 @@ int readSentence(struct Sentence * s, int current) {
 	s = s + current;
 
 	char command[512] = "say ";
+
 	if(s->text) {
-		strcpy(command + 4, s->text);
+		if (unescaped_characters(s->text) != 0) {
+			char * escaped = escape(s->text);
+
+			strcpy(command + 4, escaped);
+
+			free(escaped);
+
+		} else {
+			strcpy(command + 4, s->text);
+		}
 
 		if(fork()==0){system(command);exit(0);}
 	}
