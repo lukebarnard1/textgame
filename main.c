@@ -20,6 +20,8 @@
 //	-	Some sentences will be displayed and require no action and are simply part of
 //		a longer dialogue. Longer dialogues contain sentences and no decisions.
 
+// To compile, use gcc main.c -o main
+
 #define bool char
 #define true 1
 #define false 0
@@ -143,28 +145,29 @@ void flush() {
 	while ((ch=getchar()) != EOF && ch != '\n');
 }
 
-bool unescaped_characters(char * potentialy_unescaped) {
+bool is_character_needing_escaping(char c) {
+	return c == '(' || c ==')';
+}
+
+int unescaped_characters(char * potentialy_unescaped) {
 	// How much memory is required for the new string?
 	// The original size + the number of slashes added
-
 	int count = 0;
 
 	char * cursor = potentialy_unescaped;
 	while (*cursor != 0) {
-		if (*cursor == '\'') {
+		if (is_character_needing_escaping(*cursor)) {
 			count++;
 		}
 		cursor++;
 	}
 
+	printf("There are %d unescaped characters in %p\n", count, potentialy_unescaped );
 	return count;
 }
 
-bool is_character_needing_escaping(char c) {
-	return c == '(';
-}
-
 char * escape(char * unescaped) {
+	printf("escape(%p)\n", unescaped);
 	int finalSize = sizeof(unescaped) / sizeof(char);
 
 	finalSize += unescaped_characters(unescaped);
@@ -174,17 +177,17 @@ char * escape(char * unescaped) {
 	char * cursor = unescaped; //Move cursor back to beginning
 	char * previous = cursor;
 	while (*cursor != 0) {
+		printf("Cursor %p = %c, %p = %s\n", cursor, *cursor, escaped, escaped);
+		sleep(1);
 		if (is_character_needing_escaping(*cursor)) {
 			int position = cursor - previous;
-			// printf("%s\n", position);
-			stpncpy(escaped + position, previous, position - 1);
-			escaped[position] = '\\';
+			printf("strcpy to %p\n", escaped + position);
+			stpncpy(escaped + (previous - unescaped), previous, position - 1);
+			escaped[previous - unescaped + position] = '\\';
 			previous = cursor + 1;
 		}
 		cursor++;
 	}
-
-	// printf("%s -> %s\n", unescaped, escaped);
 
 	return escaped;
 }
@@ -197,22 +200,23 @@ int readSentence(struct Sentence * s, int current) {
 
 	s = s + current;
 
-	char command[512] = "say ";
+	// char command[512] = "say ";
 
-	if(s->text) {
-		if (unescaped_characters(s->text) != 0) {
-			char * escaped = escape(s->text);
+	// if(s->text) {
+	// 	if (unescaped_characters(s->text) != 0) {
+	// 		char * escaped = escape(s->text);
 
-			strcpy(command + 4, escaped);
+	// 		strcpy(command + 4, escaped);
 
-			free(escaped);
+	// 		free(escaped);
 
-		} else {
-			strcpy(command + 4, s->text);
-		}
+	// 	} else {
+	// 		strcpy(command + 4, s->text);
+	// 	}
 
-		if(fork()==0){system(command);exit(0);}
-	}
+	// 	printf("Saying... (%s)\n", command);
+	// 	if(fork()==0){system(command);exit(0);}
+	// }
 
 	struct Tempo typical;
 	typical.delay = 1;
@@ -226,6 +230,9 @@ int readSentence(struct Sentence * s, int current) {
 	int jitter = 0;
 	int letters = 0;
 	wordStart = cursor;
+
+	//Start a new paragraph - deep breath
+	usleep(1000000);
 
 	if (cursor)
 	while (*cursor != 0) {
@@ -244,7 +251,6 @@ int readSentence(struct Sentence * s, int current) {
 
 		fflush(stdout);
 
-
 		if(wordStart[-1] == '.') usleep(1000000);
 		if(wordStart[-1] == ',') usleep(500000);
 
@@ -253,9 +259,7 @@ int readSentence(struct Sentence * s, int current) {
 		double d = ((double)rand()/(double)RAND_MAX);
 		jitter = ((double)s->tempo->jitter) * d * 1000;
 
-
-		// free(say);
-		usleep(s->tempo->delay * 1000 + jitter);
+		usleep(s->tempo->delay * 100000 + jitter);
 	}
 
 	putchar('\n');
@@ -306,14 +310,14 @@ void readLinesFlat(char *** lines, int numLines) {
 
 	int sentenceIndex = 0;
 	int numSentences = 0;
-
+	// DEBUG printf("%s\n", );
 	while (sentenceIndex < numLines) {
 		if (lineCursor[sentenceIndex + 1] != 0 && lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
 			initDecision(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
 			numSentences++;
 			DEBUG printf("Decision at %d \n", sentenceIndex);
 			int optionsIndex = sentenceIndex + 1;
-			while (lineCursor[optionsIndex][0] == '\t') {
+			while (lineCursor[optionsIndex] != 0 && lineCursor[optionsIndex][0] == '\t') {
 				DEBUG printf("\tOption at %d: ", optionsIndex);
 				struct Option * o = malloc(sizeof(struct Option));
 				o->next = 0;
@@ -335,6 +339,7 @@ void readLinesFlat(char *** lines, int numLines) {
 				DEBUG printf("Option added\n");
 				optionsIndex++;
 			}
+			DEBUG printf("Out of while loop\n");
 			// struct Option * cursor = sentences[sentenceIndex].options.next;
 			// while(cursor != 0){
 			// 	cursor->line -= optionsIndex;
@@ -350,6 +355,7 @@ void readLinesFlat(char *** lines, int numLines) {
 			sentenceIndex++;
 		}
 	}
+	printf("Now reading sentences...\n");
 	readSentences(sentences, numLines);
 }
 
