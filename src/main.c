@@ -1,26 +1,5 @@
 
-
-// Game engine for having a text based decision making game
-// Game format:
-//  - 	Text is displayed to the user with variable speed
-//  - 	The smallest unit of displayable text is a sentence (variable-lengthed string)
-//		with time delays between words and sentences. But defining every delay between
-//		every word would be crap, so maybe it should be random and slow or random and 
-//		fast. So sentences have a speed and a degree of randomness as a percentage of 
-//		their speed. Maybe they can also SKIP the sentence their currently reading.
-//	-	Sentences can link to the next sentence to be read (but there is no option
-//		on which sentence comes next)
-//	-	Users must then make decisions based on the text they are reading.
-//	-	Decisions will be made by simple one word commands that change based on the
-//		question sentence (i.e. "There is a door in front of you, open or close?")
-//			Response: open
-//			...
-//			The door is locked.
-//	 	Choosing different options will change the sentence to be displayed next.
-//	-	Some sentences will be displayed and require no action and are simply part of
-//		a longer dialogue. Longer dialogues contain sentences and no decisions.
-
-// To compile, use gcc main.c -o main
+// To compile, make build
 
 #define bool char
 #define true 1
@@ -145,53 +124,6 @@ void flush() {
 	while ((ch=getchar()) != EOF && ch != '\n');
 }
 
-bool is_character_needing_escaping(char c) {
-	return c == '(' || c ==')';
-}
-
-int unescaped_characters(char * potentialy_unescaped) {
-	// How much memory is required for the new string?
-	// The original size + the number of slashes added
-	int count = 0;
-
-	char * cursor = potentialy_unescaped;
-	while (*cursor != 0) {
-		if (is_character_needing_escaping(*cursor)) {
-			count++;
-		}
-		cursor++;
-	}
-
-	printf("There are %d unescaped characters in %p\n", count, potentialy_unescaped );
-	return count;
-}
-
-char * escape(char * unescaped) {
-	printf("escape(%p)\n", unescaped);
-	int finalSize = sizeof(unescaped) / sizeof(char);
-
-	finalSize += unescaped_characters(unescaped);
-
-	char * escaped = malloc(sizeof(char) * finalSize);
-
-	char * cursor = unescaped; //Move cursor back to beginning
-	char * previous = cursor;
-	while (*cursor != 0) {
-		printf("Cursor %p = %c, %p = %s\n", cursor, *cursor, escaped, escaped);
-		sleep(1);
-		if (is_character_needing_escaping(*cursor)) {
-			int position = cursor - previous;
-			printf("strcpy to %p\n", escaped + position);
-			stpncpy(escaped + (previous - unescaped), previous, position - 1);
-			escaped[previous - unescaped + position] = '\\';
-			previous = cursor + 1;
-		}
-		cursor++;
-	}
-
-	return escaped;
-}
-
 int readSentence(struct Sentence * s, int current) {
 	if (s == 0){
 		DEBUG printf("%s\n", "END OF THE STORY");
@@ -199,24 +131,6 @@ int readSentence(struct Sentence * s, int current) {
 	}
 
 	s = s + current;
-
-	// char command[512] = "say ";
-
-	// if(s->text) {
-	// 	if (unescaped_characters(s->text) != 0) {
-	// 		char * escaped = escape(s->text);
-
-	// 		strcpy(command + 4, escaped);
-
-	// 		free(escaped);
-
-	// 	} else {
-	// 		strcpy(command + 4, s->text);
-	// 	}
-
-	// 	printf("Saying... (%s)\n", command);
-	// 	if(fork()==0){system(command);exit(0);}
-	// }
 
 	struct Tempo typical;
 	typical.delay = 1;
@@ -310,7 +224,7 @@ void readLinesFlat(char *** lines, int numLines) {
 
 	int sentenceIndex = 0;
 	int numSentences = 0;
-	// DEBUG printf("%s\n", );
+
 	while (sentenceIndex < numLines) {
 		if (lineCursor[sentenceIndex + 1] != 0 && lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
 			initDecision(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
@@ -339,19 +253,16 @@ void readLinesFlat(char *** lines, int numLines) {
 				DEBUG printf("Option added\n");
 				optionsIndex++;
 			}
-			DEBUG printf("Out of while loop\n");
-			// struct Option * cursor = sentences[sentenceIndex].options.next;
-			// while(cursor != 0){
-			// 	cursor->line -= optionsIndex;
-			// 	cursor = cursor->next;
-			// }
+
 			DEBUG printSentence(sentences + sentenceIndex);
+
 			sentenceIndex = optionsIndex;
 		} else {
 			initSentence(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
 			numSentences++;
+
 			DEBUG printSentence(sentences + sentenceIndex);
-			DEBUG printf("%s\n","next");
+
 			sentenceIndex++;
 		}
 	}
@@ -397,13 +308,6 @@ void readTGF(char * fileName) {
 		}
 		cursor++;
 	}
-
-	// Algorithm:
-	//	 Determine if this is a decision or sentence
-	//	 	If it is a decision, collect it's options
-	//		Else connect it to the next sentence
-
-	// initSentence(&initial, lines[0], &typical, &initialDecision);
 	
 	lines[numLines] = 0;
 	readLinesFlat(&lines, numLines);
@@ -413,22 +317,6 @@ void readTGF(char * fileName) {
 }
 
 int main(int argc, char ** argv) {
-
-	// //What I want to be able to do:
-
-	// struct Sentence initialSentence, initialDecision;
-
-	// struct Tempo typical;
-	// typical.delay = 100;
-	// typical.jitter = 1;
-
-	// initSentence(&initialSentence, "This is my first sentence! I wonder what it looks like if use a really really long bit of prose and pass it through the same function... Better be quick as this is getting really low on battery!! :)\0", &typical, &initialDecision);
-	// initDecision(&initialDecision, "This is my first decision!\0", &typical);
-
-	// struct Option one = (struct Option){.command="back",.sentence=&initialSentence,.next=0};
-	// addOption(&initialDecision, &one);
-
-	// // readSentence(&initialSentence);
 
 	if (argc > 1) {
 		readTGF(argv[1]);
