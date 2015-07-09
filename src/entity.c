@@ -19,3 +19,17 @@ void binitEntity(struct Entity * e) {
 	free(e->thing);
 	free(e->name);
 }
+
+// Basic entities
+
+void initInteger(struct Entity * e, int i, char * name) {
+	int * thing_pointer = malloc(sizeof(int));
+	*thing_pointer = i;
+
+	initEntity(e, thing_pointer, name);
+}
+
+void printInteger(struct Entity * e) {
+	printf("%s : %d\n", e->name, *(int*)e->thing);
+}
+
