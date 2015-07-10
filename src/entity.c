@@ -5,11 +5,13 @@
 
 #include <entity.h>
 
-void initEntity(struct Entity * e, void * thing, char * name, EntityType type) {
+struct Entity * initEntity(void * thing, char * name, EntityType type) {
+	struct Entity * e = malloc(sizeof(struct Entity));
 	e->type = type;
 	e->thing = thing;
 	e->name = (char *)malloc(sizeof(name) * sizeof(char));
 	strcpy(e->name, name);
+	return e;
 }
 
 void printEntity(struct Entity * e, int indent) {
@@ -18,8 +20,9 @@ void printEntity(struct Entity * e, int indent) {
 		case INTEGER: printInteger(e);return;
 		case STRING: printf("%s : %s\n", e->name, (char*)e->thing);return;
 		case INSTANCE: printInstance(e, indent + 1);return;
+		case NULL_entity: printf("%s : %p (null type)\n", e->name, e->thing);
 	}
-	printf("%s : %p (no type)\n", e->name, e->thing);
+	printf("%s : %p (unknown type)\n", e->name, e->thing);
 }
 
 void binitEntity(struct Entity * e) {
@@ -30,11 +33,11 @@ void binitEntity(struct Entity * e) {
 
 // Basic entities
 
-void initInteger(struct Entity * e, int i, char * name) {
+struct Entity * initInteger(int i, char * name) {
 	int * thing_pointer = malloc(sizeof(int));
 	*thing_pointer = i;
 
-	initEntity(e, thing_pointer, name, INTEGER);
+	return initEntity(thing_pointer, name, INTEGER);
 }
 
 void printInteger(struct Entity * e) {
@@ -42,7 +45,7 @@ void printInteger(struct Entity * e) {
 }
 
 
-void initInstance(struct Entity * e, int number_of_variables,char * name) {
+struct Entity * initInstance(int number_of_variables, char * name) {
 	number_of_variables += 1;
 
 	struct Entity ** variables = malloc(sizeof(struct Entity *) * number_of_variables);
@@ -54,9 +57,9 @@ void initInstance(struct Entity * e, int number_of_variables,char * name) {
 		variables[i] = var;
 	}
 
-	initInteger(variables[0], number_of_variables, "n_variables");
+	variables[0] = initInteger(number_of_variables, "n_variables");
 
-	initEntity(e, variables, name, INSTANCE);
+	return initEntity(variables, name, INSTANCE);
 }
 
 struct Entity * getInstanceVariableByIndex(struct Entity * e, int i) {
