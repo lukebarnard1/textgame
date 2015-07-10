@@ -27,8 +27,12 @@ void printEntity(struct Entity * e, int indent) {
 
 void binitEntity(struct Entity * e) {
 	printf("Bining %s\n", e->name);
+	switch(e->type) {
+		case INSTANCE: binitInstance(e);
+	}
 	free(e->thing);
 	free(e->name);
+	free(e);
 }
 
 // Basic entities
@@ -114,5 +118,4 @@ void binitInstance(struct Entity * e) {
 			binitEntity(a);
 		}
 	}
-	binitEntity(e);
 }
