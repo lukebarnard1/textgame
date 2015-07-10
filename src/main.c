@@ -1,3 +1,4 @@
+#include <main.h>
 
 // To compile, make build
 
@@ -13,10 +14,6 @@
 
 #define DEBUG if(debug)
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 
 struct Tempo{
 	int delay; // Delay in milliseconds on average between words
@@ -318,10 +315,30 @@ void readTGF(char * fileName) {
 
 int main(int argc, char ** argv) {
 
-	if (argc > 1) {
-		readTGF(argv[1]);
-	} else {
-		printf("%s (%d)\n","Please provide a file to play", argc);
-	}
+	struct Entity testEntity;
+
+	initInstance(&testEntity, 10, "testing");
+
+	printInstance(&testEntity);
+
+	struct Entity var1;
+	initInteger(&var1, 1234, "var1");
+
+	addVarToInstance(&testEntity, &var1);
+
+	struct Entity nested;
+	initInstance(&nested, 10, "nested");
+
+	addVarToInstance(&testEntity, &nested);
+
+	printInstance(&testEntity);
+
+	binitInstance(&testEntity);
+
+	// if (argc > 1) {
+	// 	readTGF(argv[1]);
+	// } else {
+	// 	printf("%s (%d)\n","Please provide a file to play", argc);
+	// }
 
 }

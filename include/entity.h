@@ -15,3 +15,8 @@ void binitEntity(struct Entity * e);
 
 void initInteger(struct Entity * e, int i, char * name);
 void printInteger(struct Entity * e);
+
+void initInstance(struct Entity * e, int number_of_variables, char * name);
+void addVarToInstance(struct Entity * e, struct Entity * var);
+void printInstance(struct Entity * e);
+void binitInstance(struct Entity * e);
