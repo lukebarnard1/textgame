@@ -95,7 +95,8 @@ void printInstance(struct Entity * e, int indent) {
 			printEntity(a, indent + 1);
 		}
 	}
-	printf(":<%s\n", e->name);
+	for(int i = 0; i < indent/2; i++)printf(" ");
+	printf(":%s\n", e->name);
 }
 
 void addVarToInstance(struct Entity * e, struct Entity * var) {
@@ -103,8 +104,7 @@ void addVarToInstance(struct Entity * e, struct Entity * var) {
 	for (int i = 0; i < n; ++i) {
 		struct Entity * a = getInstanceVariableByIndex(e, i);
 		if (!a->thing) {
-			printf("Adding %s\n", var->name);
-			setInstanceVariableByIndex(e, var, i + 1);
+			setInstanceVariableByIndex(e, var, i);
 			return;
 		}
 	}
