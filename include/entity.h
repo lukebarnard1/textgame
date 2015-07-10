@@ -16,6 +16,7 @@ void binitEntity(struct Entity * e);
 // Basic entities
 
 struct Entity * initInteger(int i, char * name);
+void changeInteger(struct Entity * e, int amount);
 void printInteger(struct Entity * e);
 
 struct Entity * initInstance(int number_of_variables, char * name);

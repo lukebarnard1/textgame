@@ -44,6 +44,11 @@ struct Entity * initInteger(int i, char * name) {
 	return initEntity(thing_pointer, name, INTEGER);
 }
 
+void changeInteger(struct Entity * e, int amount) {
+	(*(int*)e->thing) += amount;
+	printf("%s now %d\n", e->name, (*(int*)e->thing));
+}
+
 void printInteger(struct Entity * e) {
 	printf("%s : %d\n", e->name, *(int*)e->thing);
 }
