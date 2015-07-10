@@ -319,7 +319,7 @@ int main(int argc, char ** argv) {
 
 	initInstance(&testEntity, 10, "testing");
 
-	printInstance(&testEntity);
+	// printInstance(&testEntity);
 
 	struct Entity var1;
 	initInteger(&var1, 1234, "var1");
@@ -331,7 +331,7 @@ int main(int argc, char ** argv) {
 
 	addVarToInstance(&testEntity, &nested);
 
-	printInstance(&testEntity);
+	printInstance(&testEntity, 0);
 
 	binitInstance(&testEntity);
 
