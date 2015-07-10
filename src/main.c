@@ -315,25 +315,15 @@ void readTGF(char * fileName) {
 
 int main(int argc, char ** argv) {
 
-	struct Entity testEntity;
+	struct Entity * inventory = initInstance(16, "inventory");
+		struct Entity * axe = initInstance(2, "axe");
+			addVarToInstance(axe, initInteger(10, "attack"));
+			addVarToInstance(axe, initInteger(10, "durability"));
+		addVarToInstance(inventory, axe);
 
-	initInstance(&testEntity, 10, "testing");
+	printInstance(inventory, 0);
+	binitEntity(inventory);
 
-	// printInstance(&testEntity);
-
-	struct Entity var1;
-	initInteger(&var1, 1234, "var1");
-
-	addVarToInstance(&testEntity, &var1);
-
-	struct Entity nested;
-	initInstance(&nested, 10, "nested");
-
-	addVarToInstance(&testEntity, &nested);
-
-	printInstance(&testEntity, 0);
-
-	binitInstance(&testEntity);
 
 	// if (argc > 1) {
 	// 	readTGF(argv[1]);
