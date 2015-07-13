@@ -314,21 +314,9 @@ void readTGF(char * fileName) {
 }
 
 int main(int argc, char ** argv) {
-
-	struct Entity * inventory = initInstance(16, "inventory");
-		struct Entity * axe = initInstance(2, "axe");
-			addVarToInstance(axe, initInteger(10, "attack"));
-			addVarToInstance(axe, initInteger(10, "durability"));
-		addVarToInstance(inventory, axe);
-
-	printInstance(inventory, 0);
-	binitEntity(inventory);
-
-
-	// if (argc > 1) {
-	// 	readTGF(argv[1]);
-	// } else {
-	// 	printf("%s (%d)\n","Please provide a file to play", argc);
-	// }
-
+	if (argc > 1) {
+		readTGF(argv[1]);
+	} else {
+		printf("%s (%d)\n","Please provide a file to play", argc);
+	}
 }
