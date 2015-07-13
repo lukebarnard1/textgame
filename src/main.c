@@ -5,6 +5,7 @@
 #define bool char
 #define true 1
 #define false 0
+#define and &&
 
 #ifdef DEBUG_ON
 	bool debug = true;
@@ -34,11 +35,119 @@ struct Sentence{
 	struct Option options;
 };
 
+char * findNext(char * s, char c) {
+	while (*s != c && *s != 0) s++;
+	return s;
+}
+
+char * firstWordEq(char * s, char * first) {
+	while (*s == *first && *s != 0) {
+		s++;
+		first++;
+		if (*first == 0) return s;
+	}
+	return 0;
+}
+
+int parseQuantityDigit(char d) {
+	int intDigit = d - 48;
+	if (intDigit > 0 && intDigit < 10) {
+		return intDigit;
+	} else {
+		return 0;
+	}
+}
+
+int parseQuantity(char * strquantity) {
+	int total = 0;
+	int power = 0;
+	char * cursor = strquantity;
+	while (*cursor++) power++;
+	while (power > 0 && *strquantity) {
+		total += parseQuantityDigit(*strquantity) * pow(10, power - 1);
+		power--;
+		strquantity++;
+	}
+	return total;
+}
+
+char * parseAdd(char * cursor) {
+	cursor++;
+
+	char * itemName = cursor;
+
+	char *endOfItemName = findNext(cursor, ' ');
+	*endOfItemName = 0;
+
+	cursor = endOfItemName + 1;
+
+	char * properties = firstWordEq(cursor, "with");
+
+	if (properties) {
+		properties++;
+
+		int remaining = 16;
+		struct Entity * newItem = initInstance(remaining ,itemName); // Maximum 16 properties
+
+		while (*properties and remaining > 0) {
+			cursor = properties;
+			char * propName = cursor;
+
+			char *endOfPropName = findNext(cursor, ' ');
+			*endOfPropName = 0;
+
+			cursor = endOfPropName + 1;
+
+			char * propValue = cursor;
+
+			char *endOfPropValue = findNext(cursor, ' ');
+			*endOfPropValue = 0;
+
+			struct Entity * prop = initInteger(parseQuantity(propValue), propName);
+
+			addVarToInstance(newItem, prop);
+
+			cursor = endOfPropValue + 1;
+			properties = cursor;
+
+			usleep(100000);
+
+			remaining--;
+		}
+
+		printEntity(newItem, 0);
+	}
+	return cursor;
+}
+
+char * parseRule(char * rule_text, struct Sentence * activating_sentence) {
+	char * cursor = firstWordEq(rule_text, "add");
+	if (cursor) return parseAdd(cursor);
+
+	DEBUG if (*cursor != 0) printf("WARNING: Rule not parsed correctly. Remaining: %s\n", cursor);
+	return cursor;
+}
+
 // Initialise a sentence without a decision
 void initSentence(struct Sentence * s, char * text, struct Tempo * tempo) {
 	s->text = text;
 	s->tempo = tempo;
 	s->decision = 0;
+
+	char * cursor = findNext(text, '[');
+
+	while (*cursor == '[') {
+		// Start parsing a rule
+
+		char * endOfRule = findNext(cursor, ']');
+		*cursor = 0;
+		*endOfRule = 0;
+
+		char * rule = cursor + 1;
+		printf("Rule: %s\n", rule);
+
+		cursor = parseRule(rule, s);
+	}
 }
 
 // Initialise a sentence that will later have a decision to make
