@@ -78,15 +78,19 @@ void setInstanceVariableByIndex(struct Entity * e, struct Entity * var, int i) {
 }
 
 struct Entity * getInstanceVariableByName(struct Entity * e, char * name) {
+	return getInstanceVariableByIndex(e, getInstanceVariableIndex(e, name));
+}
+
+int getInstanceVariableIndex(struct Entity * e, char * name) {
 	int n = *(int*)((struct Entity **)e->thing)[0]->thing;
 	for (int i = 0; i < n; ++i) {
 		struct Entity * var = getInstanceVariableByIndex(e, i);
 
 		if (strcmp(var->name, name) == 0) {
-			return var;
+			return i;
 		}
 	}
-	return 0;
+	return -1;
 }
 
 void printInstance(struct Entity * e, int indent) {
@@ -94,7 +98,7 @@ void printInstance(struct Entity * e, int indent) {
 	int n = *(int*)getInstanceVariableByName(e, "n_variables")->thing;
 	for (int i = 0; i < n; ++i) {
 		struct Entity * a = getInstanceVariableByIndex(e, i);
-		if (a->thing) {
+		if (a && a->thing) {
 			printEntity(a, indent + 1);
 		}
 	}
@@ -111,6 +115,15 @@ void addVarToInstance(struct Entity * e, struct Entity * var) {
 			return;
 		}
 	}
+}
+
+void removeVarFromInstance(struct Entity * e, char * name) {
+	int i = getInstanceVariableIndex(e, name);
+	struct Entity * var = getInstanceVariableByIndex(e, i);
+	binitEntity(var);
+
+	// Set the pointer to null at i
+	setInstanceVariableByIndex(e, 0, i);
 }
 
 void binitInstance(struct Entity * e) {
