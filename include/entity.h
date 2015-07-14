@@ -1,4 +1,4 @@
-typedef enum {NULL_entity, INTEGER, STRING, INSTANCE} EntityType;
+typedef enum {NULL_entity, INTEGER, STRING, INSTANCE, ENTITY} EntityType;
 
 struct Entity{
 	EntityType type;
@@ -18,6 +18,8 @@ void binitEntity(struct Entity * e);
 struct Entity * initInteger(int i, char * name);
 void changeInteger(struct Entity * e, int amount);
 void printInteger(struct Entity * e);
+
+struct Entity * initString(char * value, char * name);
 
 struct Entity * initInstance(int number_of_variables, char * name);
 void addVarToInstance(struct Entity * e, struct Entity * var);

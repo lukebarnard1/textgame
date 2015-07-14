@@ -20,15 +20,21 @@ void printEntity(struct Entity * e, int indent) {
 		case INTEGER: printInteger(e);return;
 		case STRING: printf("%s : %s\n", e->name, (char*)e->thing);return;
 		case INSTANCE: printInstance(e, indent + 1);return;
+		case ENTITY: printf("%s refers to:\n", e->name);printEntity(e->thing, indent + 1);return;
+
 		case NULL_entity: printf("%s : %p (null type)\n", e->name, e->thing);
 	}
 	printf("%s : %p (unknown type)\n", e->name, e->thing);
 }
 
 void binitEntity(struct Entity * e) {
-	printf("Bining %s\n", e->name);
-	if(e->type == INSTANCE) binitInstance(e);
-	free(e->thing);
+	// printf("Bining %s\n", e->name);
+	if (e->type == INSTANCE) binitInstance(e);
+	if (e->type == ENTITY) {
+		binitEntity(e->thing);
+	} else {
+		free(e->thing);
+	}
 	free(e->name);
 	free(e);
 }
@@ -51,6 +57,12 @@ void printInteger(struct Entity * e) {
 	printf("%s : %d\n", e->name, *(int*)e->thing);
 }
 
+struct Entity * initString(char * value, char * name) {
+	char * thing_pointer = malloc(sizeof(value) * sizeof(char));
+	strcpy(thing_pointer, value);
+
+	return initEntity(thing_pointer, name, STRING);
+}
 
 struct Entity * initInstance(int number_of_variables, char * name) {
 	number_of_variables += 1;
