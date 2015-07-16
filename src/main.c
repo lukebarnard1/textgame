@@ -14,7 +14,7 @@
 #endif
 
 #define DEBUG if(debug)
-
+#define NOT_DEBUG if(!debug)
 
 struct Tempo{
 	int delay; // Delay in milliseconds on average between words
@@ -25,6 +25,8 @@ struct Option{
 	char * command;
 	int line;
 	struct Option * next;
+
+	struct Entity * action; // Action to be run when the option is chosen
 };
 
 struct Sentence{
@@ -73,7 +75,12 @@ int parseQuantity(char * strquantity) {
 	return total;
 }
 
-char * parseAdd(char * cursor, struct Entity * action) {
+struct Entity * parsePropValue(char * value, char * name) {
+	// TODO: If numerical, initInteger instead
+	return initString(value, name);
+}
+
+char * parseDo(char * cursor, struct Entity * action, char * doProp) {
 	cursor++;
 
 	char * itemName = cursor;
@@ -105,7 +112,7 @@ char * parseAdd(char * cursor, struct Entity * action) {
 			char *endOfPropValue = findNext(cursor, ' ');
 			*endOfPropValue = 0;
 
-			struct Entity * prop = initInteger(parseQuantity(propValue), propName);
+			struct Entity * prop = parsePropValue(propValue, propName);
 
 			addVarToInstance(newItem, prop);
 
@@ -117,35 +124,32 @@ char * parseAdd(char * cursor, struct Entity * action) {
 
 		cursor++;
 
-		addVarToInstance(action, initString("add", "do"));
+		addVarToInstance(action, initString(doProp, "do"));
 		addVarToInstance(action, initEntity(newItem, "item", ENTITY));
 	}
 	return cursor;
 }
 
-char * parseRule(char * rule_text, struct Sentence * activating_sentence) {
-
+char * parseRule(char * rule_text, struct Entity * action) {
+	DEBUG printf("Parsing rule '%s'\n", rule_text);
 	char * cursor = firstWordEq(rule_text, "add");
 
 	if (cursor) {
-		struct Entity * action = initInstance(2, "action");
-		cursor = parseAdd(cursor, action);
-		activating_sentence->action = action;
-	} 
-
-
+		cursor = parseDo(cursor, action, "add");
+	} else {
+		cursor = firstWordEq(rule_text, "requires");
+		if (cursor) {
+			cursor = parseDo(cursor, action, "requires");
+		}
+	}
 	// DEBUG if (*cursor != '[') printf("WARNING: Rule not parsed correctly. Remaining: %s\n", cursor);
 	return cursor;
 }
 
-// Initialise a sentence without a decision
-void initSentence(struct Sentence * s, char * text, struct Tempo * tempo) {
-	s->text = text;
-	s->tempo = tempo;
-	s->decision = 0;
-	s->action = 0;
+struct Entity * initSentenceAction(struct Sentence * s) {
+	struct Entity * action = initInstance(2, "action");
 
-	char * cursor = findNext(text, '[');
+	char * cursor = findNext(s->text, '[');
 
 	while (*cursor == '[') {
 		// Start parsing a rule
@@ -157,8 +161,17 @@ void initSentence(struct Sentence * s, char * text, struct Tempo * tempo) {
 		char * rule = cursor + 1;
 		// DEBUG printf("Rule: %s\n", rule);
 
-		cursor = parseRule(rule, s);
+		cursor = parseRule(rule, action);
 	}
+	return action;
+}
+
+// Initialise a sentence without a decision
+void initSentence(struct Sentence * s, char * text, struct Tempo * tempo) {
+	s->text = text;
+	s->tempo = tempo;
+	s->decision = 0;
+	s->action = initSentenceAction(s);
 }
 
 // Initialise a sentence that will later have a decision to make
@@ -167,11 +180,12 @@ void initDecision(struct Sentence * s, char * text, struct Tempo * tempo) {
 	s->tempo = tempo;
 
 	s->decision = 1;
-	s->action = 0;
+	s->action = initSentenceAction(s);
 
 	struct Option o;// Null option 
 	o.line = 0;
 	o.next = 0;
+	o.action = initInstance(2, "action");
 	s->options = o; 
 }
 
@@ -179,8 +193,17 @@ void initDecision(struct Sentence * s, char * text, struct Tempo * tempo) {
 void addOption(struct Sentence * s, struct Option * o) {
 	struct Option * cursor = &s->options, * prev;
 	prev = cursor;
-	while (cursor != 0) {prev = cursor; cursor = cursor->next;}//printf("%p\n", cursor);}// Get to the end the options
-	if(prev) prev->next = o; else printf("Failed to add option\n");
+
+	while (cursor != 0) {
+		prev = cursor;
+		cursor = cursor->next;
+	}// Get to the end of the options
+
+	if (prev) {
+		prev->next = o; 
+	} else {
+		printf("Failed to add option\n");
+	}
 }
 
 void printSentence(struct Sentence * s) {
@@ -208,7 +231,6 @@ int selectChoice(struct Option * o, char * command) {
 	while(cursor != 0) {
 		char * input = command, * expected = cursor->command;
 
-		DEBUG printf("Compare \t'%s' with \t'%s'\n", input, expected);
 		// Cycle through both strings before they end
 		while (*input != 0 && *expected != 0) {
 			if (*input != *expected) {/*printf("'%c' '%c'\n", *input, *expected);*/ break;} // Stop if they aren't equal
@@ -216,7 +238,6 @@ int selectChoice(struct Option * o, char * command) {
 			expected++;
 		}
 		if (*input == 0 && *expected == 0) { // This means they are equal
-			DEBUG printf("line: %d\n", cursor->line);
 			return cursor->line; // Return this choice
 		}
 		cursor = cursor->next;
@@ -242,17 +263,50 @@ void flush() {
 	while ((ch=getchar()) != EOF && ch != '\n');
 }
 
-void doAction(struct Entity * action, struct Entity * inventory) {
-	//action has "do" property
-	DEBUG printf("DOING....\n");
-	struct Entity * doProp = getInstanceVariableByName(action, "do");
-	char * doPropType = (char*)doProp->thing;
+bool isActionPossible(struct Entity * action, struct Entity * inventory) {
+	if (action) {
+		struct Entity * doProp = getInstanceVariableByName(action, "do");
+		if (doProp) {
+			char * doPropType = (char*)doProp->thing;
+			if (strcmp(doPropType, "add") == 0) {
 
-	if (strcmp(doPropType, "add") == 0) {
-		struct Entity * item = getInstanceVariableByName(action, "item");
-		addVarToInstance(inventory, item->thing);
-		printf("\n\tYou have acquired %s", ((struct Entity *)item->thing)->name);
+				return firstAvailableIndex(inventory) != -1;
+
+			} else if (strcmp(doPropType, "requires") == 0) {
+				struct Entity * item = (struct Entity *)getInstanceVariableByName(action, "item")->thing;
+
+				return searchInstanceForRequirement(inventory, item) != 0;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} else {
+		return false;
 	}
+}
+
+bool doAction(struct Entity * action, struct Entity * inventory) {
+	//action has "do" property
+
+	if (isActionPossible(action, inventory)) {
+		struct Entity * doProp = getInstanceVariableByName(action, "do");
+		char * doPropType = (char*)doProp->thing;
+
+		if (strcmp(doPropType, "add") == 0) {
+			struct Entity * item = getInstanceVariableByName(action, "item");
+			addVarToInstance(inventory, item->thing);
+			printf("\n\tYou have acquired %s", ((struct Entity *)item->thing)->name);
+		}
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool isOptionPossible(struct Option * o, struct Entity * inventory) {
+	return o and (!getInstanceVariableByName(o->action, "do") || isActionPossible(o->action, inventory));
 }
 
 int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
@@ -277,7 +331,7 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 	wordStart = cursor;
 
 	//Start a new paragraph - deep breath
-	usleep(1000000);
+	NOT_DEBUG usleep(1000000);
 
 	if (cursor)
 	while (*cursor != 0) {
@@ -296,47 +350,49 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 
 		fflush(stdout);
 
-		if(wordStart[-1] == '.') usleep(1000000);
-		if(wordStart[-1] == ',') usleep(500000);
+		if(wordStart[-1] == '.') NOT_DEBUG usleep(1000000);
+		if(wordStart[-1] == ',') NOT_DEBUG usleep(500000);
 
 		if (*cursor) {cursor++;} else {break;}
 		
 		double d = ((double)rand()/(double)RAND_MAX);
 		jitter = ((double)s->tempo->jitter) * d * 1000;
 
-		usleep(s->tempo->delay * 100000 + jitter);
+		NOT_DEBUG usleep(s->tempo->delay * 100000 + jitter);
 	}
 
 	if (s->action) {
-		// printf("%s\n", s->action->name);
-		// printEntity(s->action, 0);
 		doAction(s->action, inventory);
 	}
 
 	putchar('\n');
 	if (s->decision) {
+		// DEBUG printEntity(inventory, 0);
 		struct Option * cursor = s->options.next;
+
 		int i = 1;
-		while(cursor != 0){
-			printf("\t%d: %s", i, cursor->command);
+		while (cursor != 0){
+			if (isOptionPossible(cursor, inventory)) {
+				printf("\t%d: %s", i, cursor->command);
+			}
+
 			cursor = cursor->next;
 			i++;
 		}
 		putchar('\n');
 
-		int max = 20; //Max size of commands is here
+		int max = 100; //Max size of commands is here
 		char * command = malloc(sizeof(char) * max);
 		int choice = 0;
 
 		// Loop until a correct command is typed in
 		do{
-			DEBUG printf("%s\n", "What is your decision?");
 			fgets(command, max, stdin);
 			// flush();
 			trimNewline(command);
 
 		} while ((choice = selectChoice(&s->options, command)) == -1);
-		printf("You chose %s...\n\n", command);
+		// printf("You chose %s...\n\n", command);
 		
 		free(command);
 		return choice;
@@ -345,14 +401,14 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 	}
 }
 
-void readSentences(struct Sentence * sentences, int numLines, struct Entity * inventory) {
-	int next = 0;
+void readSentences(struct Sentence * sentences, int numLines, struct Entity * inventory, int start_line) {
+	int next = start_line -1;
 	while (next < numLines) {
 		next = readSentence(sentences, next, inventory);
 	}
 }
 
-void readLinesFlat(char *** lines, int numLines, struct Entity * inventory) {
+void readLinesFlat(char *** lines, int numLines, struct Entity * inventory, int start_line) {
 	// Sentences will just be stored in a massive array as they are in lines
 
 	char ** lineCursor = *lines;
@@ -365,11 +421,12 @@ void readLinesFlat(char *** lines, int numLines, struct Entity * inventory) {
 	while (sentenceIndex < numLines) {
 		if (lineCursor[sentenceIndex + 1] != 0 && lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
 			initDecision(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
+
 			numSentences++;
-			DEBUG printf("Decision at %d \n", sentenceIndex);
+
 			int optionsIndex = sentenceIndex + 1;
 			while (lineCursor[optionsIndex] != 0 && lineCursor[optionsIndex][0] == '\t') {
-				DEBUG printf("\tOption at %d: ", optionsIndex);
+
 				struct Option * o = malloc(sizeof(struct Option));
 				o->next = 0;
 
@@ -379,35 +436,41 @@ void readLinesFlat(char *** lines, int numLines, struct Entity * inventory) {
 				*(space - 1) = 0; // The space after the number becomes 0
 
 				sscanf(lineCursor[optionsIndex] + 1, "%d", &o->line);
-				DEBUG printf("[line: %d]", o->line);
 
 				o->line--;
 
-				DEBUG printf("'%s'\n", space);
-
 				o->command = space;
+				o->action = initInstance(2, "action");
+				char * cursor = findNext(o->command, '[');
+
+				while (cursor != 0 and *cursor == '[') {
+					char * rule = findNext(cursor, '[');
+					cursor = rule - 1;
+
+					char * endOfRule = findNext(cursor, ']');
+					*cursor = 0;
+					*endOfRule = 0;
+
+					cursor = parseRule(rule + 1, o->action);
+					usleep(100000);
+				}
+
 				addOption(sentences + sentenceIndex, o);
-				DEBUG printf("Option added\n");
 				optionsIndex++;
 			}
-
-			DEBUG printSentence(sentences + sentenceIndex);
 
 			sentenceIndex = optionsIndex;
 		} else {
 			initSentence(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
 			numSentences++;
 
-			DEBUG printSentence(sentences + sentenceIndex);
-
 			sentenceIndex++;
 		}
 	}
-	printf("Now reading sentences...\n");
-	readSentences(sentences, numLines, inventory);
+	readSentences(sentences, numLines, inventory, start_line);
 }
 
-void readTGF(char * fileName) {
+void readTGF(char * fileName, int start_line) {
 	FILE * file = fopen(fileName,"r");
 
 	fseek(file, 0L, SEEK_END);
@@ -450,7 +513,7 @@ void readTGF(char * fileName) {
 
 	struct Entity * inventory = initInstance(16, "inventory");
 
-	readLinesFlat(&lines, numLines, inventory);
+	readLinesFlat(&lines, numLines, inventory, start_line);
 
 	free(lines);
 	free(fileBuffer);
@@ -458,7 +521,12 @@ void readTGF(char * fileName) {
 
 int main(int argc, char ** argv) {
 	if (argc > 1) {
-		readTGF(argv[1]);
+		int start = 1;
+		DEBUG
+		if (argc > 2) {
+			start = parseQuantity(argv[2]);
+		}
+		readTGF(argv[1], start);
 	} else {
 		printf("%s (%d)\n","Please provide a file to play", argc);
 	}

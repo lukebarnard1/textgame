@@ -23,8 +23,10 @@ struct Entity * initString(char * value, char * name);
 
 struct Entity * initInstance(int number_of_variables, char * name);
 void addVarToInstance(struct Entity * e, struct Entity * var);
+int firstAvailableIndex(struct Entity * e);
 void removeVarFromInstance(struct Entity * e, char * name);
 int getInstanceVariableIndex(struct Entity * e, char * name);
+struct Entity * searchInstanceForRequirement(struct Entity * haystack, struct Entity * needle);
 struct Entity * getInstanceVariableByName(struct Entity * e, char * name);
 void printInstance(struct Entity * e, int indent);
 void binitInstance(struct Entity * e);
