@@ -1,3 +1,6 @@
 
 #Binaries
 dist
+
+#MacOS
+.DS_Store
