@@ -28,5 +28,6 @@ void removeVarFromInstance(struct Entity * e, char * name);
 int getInstanceVariableIndex(struct Entity * e, char * name);
 struct Entity * searchInstanceForRequirement(struct Entity * haystack, struct Entity * needle);
 struct Entity * getInstanceVariableByName(struct Entity * e, char * name);
+char hasInstanceVariables(struct Entity * a);
 void printInstance(struct Entity * e, int indent);
 void binitInstance(struct Entity * e);

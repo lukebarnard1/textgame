@@ -39,6 +39,11 @@ struct Sentence{
 	struct Entity * action; // Action to be run when the sentence is read
 };
 
+struct GameState{
+	int currentLine;
+	struct Entity * inventory;
+};
+
 char * findNext(char * s, char c) {
 	while (*s != c && *s != 0) s++;
 	return s;
@@ -80,23 +85,28 @@ struct Entity * parsePropValue(char * value, char * name) {
 	return initString(value, name);
 }
 
-char * parseDo(char * cursor, struct Entity * action, char * doProp) {
-	cursor++;
+char * parseDo(char * cursor, struct Entity * action) {
+
+	char * doProp = cursor;
+	char * endOfdoProp = findNext(cursor, ' ');
+	*endOfdoProp = 0;
+
+	cursor = endOfdoProp + 1;
 
 	char * itemName = cursor;
 
-	char *endOfItemName = findNext(cursor, ' ');
+	char * endOfItemName = findNext(cursor, ' ');
 	*endOfItemName = 0;
 
 	cursor = endOfItemName + 1;
 
 	char * properties = firstWordEq(cursor, "with");
 
+	int remaining = 16;
+	struct Entity * newItem = initInstance(remaining, itemName); // Maximum 16 properties
+
 	if (properties) {
 		properties++;
-
-		int remaining = 16;
-		struct Entity * newItem = initInstance(remaining, itemName); // Maximum 16 properties
 
 		while (*properties and *properties != ' ' and remaining > 0) {
 			cursor = properties;
@@ -123,25 +133,16 @@ char * parseDo(char * cursor, struct Entity * action, char * doProp) {
 		}
 
 		cursor++;
-
-		addVarToInstance(action, initString(doProp, "do"));
-		addVarToInstance(action, initEntity(newItem, "item", ENTITY));
 	}
+
+	addVarToInstance(action, initString(doProp, "do"));
+	addVarToInstance(action, initEntity(newItem, "item", ENTITY));
 	return cursor;
 }
 
 char * parseRule(char * rule_text, struct Entity * action) {
 	DEBUG printf("Parsing rule '%s'\n", rule_text);
-	char * cursor = firstWordEq(rule_text, "add");
-
-	if (cursor) {
-		cursor = parseDo(cursor, action, "add");
-	} else {
-		cursor = firstWordEq(rule_text, "requires");
-		if (cursor) {
-			cursor = parseDo(cursor, action, "requires");
-		}
-	}
+	char * cursor = parseDo(rule_text, action);
 	// DEBUG if (*cursor != '[') printf("WARNING: Rule not parsed correctly. Remaining: %s\n", cursor);
 	return cursor;
 }
@@ -274,8 +275,7 @@ bool isActionPossible(struct Entity * action, struct Entity * inventory) {
 
 			} else if (strcmp(doPropType, "requires") == 0) {
 				struct Entity * item = (struct Entity *)getInstanceVariableByName(action, "item")->thing;
-
-				return searchInstanceForRequirement(inventory, item) != 0;
+				return searchInstanceForRequirement(inventory, item) != 0 ||  (!hasInstanceVariables(item) && getInstanceVariableByName(inventory, item->name));
 			} else {
 				return false;
 			}
@@ -289,6 +289,7 @@ bool isActionPossible(struct Entity * action, struct Entity * inventory) {
 
 bool doAction(struct Entity * action, struct Entity * inventory) {
 	//action has "do" property
+	// DEBUG printEntity(action, 0);
 
 	if (isActionPossible(action, inventory)) {
 		struct Entity * doProp = getInstanceVariableByName(action, "do");
@@ -297,7 +298,7 @@ bool doAction(struct Entity * action, struct Entity * inventory) {
 		if (strcmp(doPropType, "add") == 0) {
 			struct Entity * item = getInstanceVariableByName(action, "item");
 			addVarToInstance(inventory, item->thing);
-			printf("\n\tYou have acquired %s", ((struct Entity *)item->thing)->name);
+			// printf("\n\tYou have acquired %s", ((struct Entity *)item->thing)->name);
 		}
 		return true;
 	} else {
@@ -316,6 +317,10 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 	}
 
 	s = s + current;
+
+	if (s->text == 0) {
+		printf("WARNING: Trying to go to non-instantiated sentence.\n");
+	}
 
 	struct Tempo typical;
 	typical.delay = 1;
@@ -351,7 +356,11 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 		fflush(stdout);
 
 		if(wordStart[-1] == '.') NOT_DEBUG usleep(1000000);
+		if(wordStart[-1] == '?') NOT_DEBUG usleep(1000000);
+		if(wordStart[-1] == '!') NOT_DEBUG usleep(1000000);
+		if(wordStart[-1] == ':') NOT_DEBUG usleep(1000000);
 		if(wordStart[-1] == ',') NOT_DEBUG usleep(500000);
+		if(wordStart[-1] == ';') NOT_DEBUG usleep(500000);
 
 		if (*cursor) {cursor++;} else {break;}
 		
@@ -374,10 +383,10 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 		while (cursor != 0){
 			if (isOptionPossible(cursor, inventory)) {
 				printf("\t%d: %s", i, cursor->command);
+				i++;
 			}
 
 			cursor = cursor->next;
-			i++;
 		}
 		putchar('\n');
 
@@ -417,7 +426,11 @@ void readLinesFlat(char *** lines, int numLines, struct Entity * inventory, int 
 
 	int sentenceIndex = 0;
 	int numSentences = 0;
-
+	while (sentenceIndex < numLines) {
+		sentences[sentenceIndex].text = 0;//Not instantiated
+		sentenceIndex++;
+	}
+	sentenceIndex = 0;
 	while (sentenceIndex < numLines) {
 		if (lineCursor[sentenceIndex + 1] != 0 && lineCursor[sentenceIndex + 1][0] == '\t') { // Indent on the next line == decision
 			initDecision(sentences + sentenceIndex, lineCursor[sentenceIndex], 0);
@@ -515,6 +528,8 @@ void readTGF(char * fileName, int start_line) {
 
 	readLinesFlat(&lines, numLines, inventory, start_line);
 
+	// binitEntity(inventory);
+
 	free(lines);
 	free(fileBuffer);
 }
@@ -522,7 +537,7 @@ void readTGF(char * fileName, int start_line) {
 int main(int argc, char ** argv) {
 	if (argc > 1) {
 		int start = 1;
-		DEBUG
+		// DEBUG
 		if (argc > 2) {
 			start = parseQuantity(argv[2]);
 		}

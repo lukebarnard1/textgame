@@ -42,7 +42,7 @@ void printEntity(struct Entity * e, int indent) {
 }
 
 void binitEntity(struct Entity * e) {
-	// printf("Bining %s\n", e->name);
+	DEBUG printf("Bining %s\n", e->name);
 	if (e->type == INSTANCE) binitInstance(e);
 	if (e->type == ENTITY) {
 		binitEntity(e->thing);
@@ -138,8 +138,13 @@ char isPropertiesSubset(struct Entity * a, struct Entity * b) {
 	}
 }
 
+
+char isEntitySimilar(struct Entity * a,  struct Entity * b) {
+	return strcmp(a->name, b->name) == 0 && a->type == b->type;
+}
+
 char isEntityEqual(struct Entity * a, struct Entity * b) {
-	if (strcmp(a->name, b->name) == 0 && a->type == b->type) {
+	if (isEntitySimilar(a, b)) {
 		if (a->type == INSTANCE) {
 			//Do the instances have the same number of variables?
 			int n = getInstanceNumberOfVariables(a);
@@ -163,6 +168,14 @@ char isEntityEqual(struct Entity * a, struct Entity * b) {
 		} else if (a->type == INTEGER) {
 			return *(int*)a->thing == *(int*)b->thing;
 		}
+	}
+	return 0;
+}
+
+char hasInstanceVariables(struct Entity * a) {
+	int n = *(int*)((struct Entity **)a->thing)[0]->thing;
+	for (int i = 1; i < n; ++i) {
+		if (getInstanceVariableByIndex(a, i)->thing) return 1;
 	}
 	return 0;
 }
