@@ -310,7 +310,71 @@ bool isOptionPossible(struct Option * o, struct Entity * inventory) {
 	return o and (!getInstanceVariableByName(o->action, "do") || isActionPossible(o->action, inventory));
 }
 
-int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
+struct Input {
+	char listening;
+	char * command;
+	char running;
+	char receiving;
+};
+
+void * userInput(void * inpt) {
+	struct Input * input = ((struct Input*)inpt);
+	if (input->listening) {
+		printf("Listening...\n");
+	}
+	int max = 1000;
+	input->command = malloc(sizeof(char) * max);
+	input->command[0] = 'X';
+	while (input->running) {
+		while (input->listening and input->running) {
+			input->receiving = true;
+			getnstr(input->command, max);
+			input->receiving = false;
+			usleep(500000);
+		}
+		while (!input->listening and input->running) {
+			usleep(500000);
+		}
+	}
+	free(input->command);
+	return NULL;
+}
+
+void breath(int milliseconds, struct Input * input) {
+	/*Pause for a number of milliseconds.
+	If the user toggles "return", skip the breath*/
+
+	int c = 10;
+	while (c) {
+		if (input->command[0] != 0) {
+			usleep(milliseconds * 100);
+		} else {
+			usleep(milliseconds * 10);
+		}
+		c--;
+	}
+}
+
+void redraw(struct ViewPage * vp, int startLine) {
+	// Redraws the view
+	clear();
+	
+	while(vp->prev) {
+		vp = vp->prev;
+	}
+
+	do{
+		printw(vp->page);
+		vp = vp->next;
+	} while (vp);
+	refresh();
+}
+
+int readSentence(struct Sentence * s, 
+					int current, 
+					struct Entity * inventory, 
+					struct Input * input, 
+					struct ViewPage * vp) {
 	if (s == 0){
 		DEBUG printf("%s\n", "END OF THE STORY");
 		return -1;
@@ -324,7 +388,7 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 
 	struct Tempo typical;
 	typical.delay = 1;
-	typical.jitter = 3;
+	typical.jitter = 1;
 
 	if (s->tempo == 0) {
 		s->tempo = &typical;
@@ -332,49 +396,50 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 
 	char * cursor = s->text, * wordStart;
 	int jitter = 0;
-	int letters = 0;
 	wordStart = cursor;
 
 	//Start a new paragraph - deep breath
-	NOT_DEBUG usleep(1000000);
+	NOT_DEBUG breath(1000, input);
 
 	if (cursor)
 	while (*cursor != 0) {
-		letters = 0;
 		while (*cursor != ' ' && *cursor != 0) {
 			cursor++;
-			letters++;
 			//Move forward to first space
 		}
 
+		char save = *cursor;
+		*cursor = 0;
+		int wordLength = strlen(wordStart);
+		vp = appendText(vp, wordStart);
+		vp = appendText(vp, " ");
+		redraw(vp, 0);
+
 		//Print between wordStart and cursor
-		while (wordStart < cursor) {
-			putchar(*wordStart);
-			wordStart++;
-		}
+		*cursor = save;
+		wordStart = cursor + 1;
 
-		fflush(stdout);
-
-		if(wordStart[-1] == '.') NOT_DEBUG usleep(1000000);
-		if(wordStart[-1] == '?') NOT_DEBUG usleep(1000000);
-		if(wordStart[-1] == '!') NOT_DEBUG usleep(1000000);
-		if(wordStart[-1] == ':') NOT_DEBUG usleep(1000000);
-		if(wordStart[-1] == ',') NOT_DEBUG usleep(500000);
-		if(wordStart[-1] == ';') NOT_DEBUG usleep(500000);
+		if(wordStart[-2] == '.') NOT_DEBUG breath(1000, input);
+		if(wordStart[-2] == '?') NOT_DEBUG breath(1000, input);
+		if(wordStart[-2] == '!') NOT_DEBUG breath(1000, input);
+		if(wordStart[-2] == ':') NOT_DEBUG breath(1000, input);
+		if(wordStart[-2] == ',') NOT_DEBUG breath(500, input);
+		if(wordStart[-2] == ';') NOT_DEBUG breath(500, input);
 
 		if (*cursor) {cursor++;} else {break;}
 		
 		double d = ((double)rand()/(double)RAND_MAX);
-		jitter = ((double)s->tempo->jitter) * d * 1000;
+		jitter = ((double)s->tempo->jitter) * d;
 
-		NOT_DEBUG usleep(s->tempo->delay * 100000 + jitter);
+		NOT_DEBUG breath((jitter + (wordLength / 3)) * 100, input);
 	}
 
+	redraw(vp, 0);
 	if (s->action) {
 		doAction(s->action, inventory);
 	}
 
-	putchar('\n');
+	appendText(vp, "\n");
 	if (s->decision) {
 		// DEBUG printEntity(inventory, 0);
 		struct Option * cursor = s->options.next;
@@ -382,39 +447,67 @@ int readSentence(struct Sentence * s, int current, struct Entity * inventory) {
 		int i = 1;
 		while (cursor != 0){
 			if (isOptionPossible(cursor, inventory)) {
-				printf("\t%d: %s", i, cursor->command);
+
+				redraw(vp, 0);
+				appendText(vp, "\t[%s]", cursor->command);
+				redraw(vp, 0);
 				i++;
 			}
 
 			cursor = cursor->next;
 		}
-		putchar('\n');
+		appendText(vp, "\n");
+		redraw(vp, 0);
 
-		int max = 100; //Max size of commands is here
-		char * command = malloc(sizeof(char) * max);
 		int choice = 0;
 
 		// Loop until a correct command is typed in
 		do{
-			fgets(command, max, stdin);
-			// flush();
-			trimNewline(command);
+			while (!input->receiving) {usleep(100000);} // Wait until receiving
+			echo();
+			while (input->receiving) {usleep(100000);} // Wait until received
+			noecho();
+			appendText(vp, "\tYou selected '%s'\n", input->command);
+			redraw(vp, 0);
 
-		} while ((choice = selectChoice(&s->options, command)) == -1);
-		// printf("You chose %s...\n\n", command);
+			choice = selectChoice(&s->options, input->command);
+		} while (choice == -1);
 		
-		free(command);
 		return choice;
+		// return current + 1;
 	} else {
 		return current + 1;//Advance the index
 	}
 }
 
 void readSentences(struct Sentence * sentences, int numLines, struct Entity * inventory, int start_line) {
+	
+	initscr();
+	scrollok(stdscr, TRUE);
+	// idlok(stdscr, TRUE);
+	cbreak();
+	noecho();
+	pthread_t inputThread;
+
+	struct ViewPage * vp = initPage(32);
+
+	struct Input input;
+	input.running = true;
+	input.listening = true;
+
+	pthread_create(&inputThread, NULL, userInput, &input);
+
 	int next = start_line -1;
 	while (next < numLines) {
-		next = readSentence(sentences, next, inventory);
+		next = readSentence(sentences, next, inventory, &input, vp);
 	}
+
+	binitPage(vp);
+
+	input.running = false;
+	pthread_cancel(inputThread);
+
+	endwin();
 }
 
 void readLinesFlat(char *** lines, int numLines, struct Entity * inventory, int start_line) {
@@ -465,7 +558,7 @@ void readLinesFlat(char *** lines, int numLines, struct Entity * inventory, int 
 					*endOfRule = 0;
 
 					cursor = parseRule(rule + 1, o->action);
-					usleep(100000);
+					// usleep(100000);
 				}
 
 				addOption(sentences + sentenceIndex, o);
