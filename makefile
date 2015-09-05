@@ -8,10 +8,10 @@ MACOSX_TARGET := $(addprefix $(DST_DIR), textgame_MacOSX)
 DEBUG_MACOSX_TARGET := $(addprefix $(DST_DIR), textgame_MacOSX_debug)
 
 $(MACOSX_TARGET) : $(addprefix $(SRC_DIR), *.c)
-	gcc -Iinclude -Wall -o $(MACOSX_TARGET) $^
+	gcc -Iinclude -lncurses -Wall -o $(MACOSX_TARGET) $^
 
 $(DEBUG_MACOSX_TARGET) : $(addprefix $(SRC_DIR), *.c)
-	gcc -Iinclude -Wall -DDEBUG_ON -o $(DEBUG_MACOSX_TARGET) $^
+	gcc -Iinclude -lncurses -Wall -DDEBUG_ON -o $(DEBUG_MACOSX_TARGET) $^
 
 clean:
 	rm -rf $(addprefix $(DST_DIR), *)
