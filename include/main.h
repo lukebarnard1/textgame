@@ -10,5 +10,4 @@
 #include <ncurses.h>
 
 #include <entity.h>
-#include <cursor.h>
 #include <page.h>

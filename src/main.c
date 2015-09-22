@@ -147,20 +147,20 @@ char * parseRule(char * rule_text, struct Entity * action) {
 	return cursor;
 }
 
-struct Entity * initSentenceAction(struct Sentence * s) {
+struct Entity * initSentenceAction(char * s) {
 	struct Entity * action = initInstance(2, "action");
 
-	char * cursor = findNext(s->text, '[');
+	char * cursor = findNext(s, '[');
 
-	while (*cursor == '[') {
+	if (*cursor == '[') {
 		// Start parsing a rule
 
 		char * endOfRule = findNext(cursor, ']');
-		*cursor = 0;
+
+		*(cursor-1) = 0;
 		*endOfRule = 0;
 
 		char * rule = cursor + 1;
-		// DEBUG printf("Rule: %s\n", rule);
 
 		cursor = parseRule(rule, action);
 	}
@@ -172,7 +172,7 @@ void initSentence(struct Sentence * s, char * text, struct Tempo * tempo) {
 	s->text = text;
 	s->tempo = tempo;
 	s->decision = 0;
-	s->action = initSentenceAction(s);
+	s->action = initSentenceAction(s->text);
 }
 
 // Initialise a sentence that will later have a decision to make
@@ -181,7 +181,7 @@ void initDecision(struct Sentence * s, char * text, struct Tempo * tempo) {
 	s->tempo = tempo;
 
 	s->decision = 1;
-	s->action = initSentenceAction(s);
+	s->action = initSentenceAction(s->text);
 
 	struct Option o;// Null option 
 	o.line = 0;
@@ -227,7 +227,83 @@ void printSentence(struct Sentence * s) {
 	}
 }
 
-int selectChoice(struct Option * o, char * command) {
+void redraw(struct ViewPage * vp, int startLine) {
+	// Redraws the view
+	clear();
+
+	if (!vp) {
+		printw("Warning: ViewPage is NULL!\n");
+		refresh();
+		sleep(1);
+		return;
+	}
+
+	while(vp->prev) {
+		vp = vp->prev;
+	}
+
+	do{
+		printw(vp->page);
+		vp = vp->next;
+	} while (vp);
+	refresh();
+}
+
+bool isActionPossible(struct Entity * action, struct Entity * inventory) {
+	if (action) {
+		struct Entity * doProp = getInstanceVariableByName(action, "do");
+		if (doProp) {
+			char * doPropType = (char*)doProp->thing;
+			if (strcmp(doPropType, "add") == 0) {
+				/** Check that the inventory is not full **/
+
+				return firstAvailableIndex(inventory) != -1; //Make sure there's room
+			} else if (strcmp(doPropType, "set") == 0) {
+				/** Check that the inventory item exists and
+				 that it has the variable being set **/
+				struct Entity * item = (struct Entity *)getInstanceVariableByName(action, "item")->thing; 
+
+				struct Entity * thingWithPropsBeingSet = (struct Entity *)getInstanceVariableByName(inventory, item->name);
+				
+				return canSetInstance(thingWithPropsBeingSet, item);
+			} else if (strcmp(doPropType, "requires") == 0) {
+				struct Entity * item = (struct Entity *)getInstanceVariableByName(action, "item")->thing;
+				return item && (searchInstanceForRequirement(inventory, item) != 0 || (!hasInstanceVariables(item) && getInstanceVariableByName(inventory, item->name)));
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} else {
+		return false;
+	}
+}
+
+bool doAction(struct Entity * action, struct Entity * inventory) {
+	//action has "do" property
+
+	if (isActionPossible(action, inventory)) {
+		struct Entity * doProp = getInstanceVariableByName(action, "do");
+		char * doPropType = (char*)doProp->thing;
+
+		if (strcmp(doPropType, "add") == 0) {
+			struct Entity * item = getInstanceVariableByName(action, "item");
+
+			addVarToInstance(inventory, item->thing);
+		} else if(strcmp(doPropType, "set") == 0) {
+			struct Entity * item = getInstanceVariableByName(action, "item");
+			item = (struct Entity *)item->thing;
+			
+			setInstance(getInstanceVariableByName(inventory, item->name), item);
+		}
+		return true;
+	} else {
+		return false;
+	}
+}
+
+int selectChoice(struct Option * o, char * command, struct Entity * inventory) {
 	struct Option * cursor = o->next;
 	while(cursor != 0) {
 		char * input = command, * expected = cursor->command;
@@ -239,6 +315,8 @@ int selectChoice(struct Option * o, char * command) {
 			expected++;
 		}
 		if (*input == 0 && *expected == 0) { // This means they are equal
+
+			doAction(cursor->action, inventory); // Do the action related to this option
 			return cursor->line; // Return this choice
 		}
 		cursor = cursor->next;
@@ -264,47 +342,7 @@ void flush() {
 	while ((ch=getchar()) != EOF && ch != '\n');
 }
 
-bool isActionPossible(struct Entity * action, struct Entity * inventory) {
-	if (action) {
-		struct Entity * doProp = getInstanceVariableByName(action, "do");
-		if (doProp) {
-			char * doPropType = (char*)doProp->thing;
-			if (strcmp(doPropType, "add") == 0) {
 
-				return firstAvailableIndex(inventory) != -1;
-
-			} else if (strcmp(doPropType, "requires") == 0) {
-				struct Entity * item = (struct Entity *)getInstanceVariableByName(action, "item")->thing;
-				return searchInstanceForRequirement(inventory, item) != 0 ||  (!hasInstanceVariables(item) && getInstanceVariableByName(inventory, item->name));
-			} else {
-				return false;
-			}
-		} else {
-			return false;
-		}
-	} else {
-		return false;
-	}
-}
-
-bool doAction(struct Entity * action, struct Entity * inventory) {
-	//action has "do" property
-	// DEBUG printEntity(action, 0);
-
-	if (isActionPossible(action, inventory)) {
-		struct Entity * doProp = getInstanceVariableByName(action, "do");
-		char * doPropType = (char*)doProp->thing;
-
-		if (strcmp(doPropType, "add") == 0) {
-			struct Entity * item = getInstanceVariableByName(action, "item");
-			addVarToInstance(inventory, item->thing);
-			// printf("\n\tYou have acquired %s", ((struct Entity *)item->thing)->name);
-		}
-		return true;
-	} else {
-		return false;
-	}
-}
 
 bool isOptionPossible(struct Option * o, struct Entity * inventory) {
 	return o and (!getInstanceVariableByName(o->action, "do") || isActionPossible(o->action, inventory));
@@ -355,20 +393,6 @@ void breath(int milliseconds, struct Input * input) {
 	}
 }
 
-void redraw(struct ViewPage * vp, int startLine) {
-	// Redraws the view
-	clear();
-	
-	while(vp->prev) {
-		vp = vp->prev;
-	}
-
-	do{
-		printw(vp->page);
-		vp = vp->next;
-	} while (vp);
-	refresh();
-}
 
 int readSentence(struct Sentence * s, 
 					int current, 
@@ -470,7 +494,7 @@ int readSentence(struct Sentence * s,
 			appendText(vp, "\tYou selected '%s'\n", input->command);
 			redraw(vp, 0);
 
-			choice = selectChoice(&s->options, input->command);
+			choice = selectChoice(&s->options, input->command, inventory);
 		} while (choice == -1);
 		
 		return choice;
@@ -546,20 +570,24 @@ void readLinesFlat(char *** lines, int numLines, struct Entity * inventory, int 
 				o->line--;
 
 				o->command = space;
-				o->action = initInstance(2, "action");
-				char * cursor = findNext(o->command, '[');
+				o->action = initSentenceAction(o->command);
 
-				while (cursor != 0 and *cursor == '[') {
-					char * rule = findNext(cursor, '[');
-					cursor = rule - 1;
+				// //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+				// o->action = initInstance(2, "action");
+				// char * cursor = findNext(o->command, '[');
 
-					char * endOfRule = findNext(cursor, ']');
-					*cursor = 0;
-					*endOfRule = 0;
+				// while (cursor != 0 and *cursor == '[') {
+				// 	char * rule = findNext(cursor, '[');
+				// 	cursor = rule - 1;
 
-					cursor = parseRule(rule + 1, o->action);
-					// usleep(100000);
-				}
+				// 	char * endOfRule = findNext(cursor, ']');
+				// 	*cursor = 0;
+				// 	*endOfRule = 0;
+
+				// 	cursor = parseRule(rule + 1, o->action);
+				// }
+				// //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
 
 				addOption(sentences + sentenceIndex, o);
 				optionsIndex++;

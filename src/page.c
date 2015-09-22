@@ -21,6 +21,7 @@ void binitPage(struct ViewPage * vp){
 struct ViewPage * appendText(struct ViewPage * vp, char * format, ... ) {
 	// Appends text to this view page, adds another page if necessary
 	// and returns a pointer to the view page whose page was added to.
+	if (!vp)return vp;
 
 	char text[1024];
 
@@ -47,7 +48,7 @@ struct ViewPage * appendText(struct ViewPage * vp, char * format, ... ) {
 
 		np->size = vp->size;
 		np->filled = 0;
-		np->page = (char*)malloc(sizeof(char) * vp->size);
+		np->page = (char*)malloc(sizeof(char) * np->size);
 		np->prev = vp;// Back reference
 		np->next = 0; // Null pointer
 

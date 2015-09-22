@@ -28,24 +28,36 @@ struct Entity * initEntity(void * thing, char * name, EntityType type) {
 	return e;
 }
 
+struct Entity * getEntity(struct Entity * entity){
+	return (struct Entity *)entity->thing;
+} 
+
+int getInteger(struct Entity * integer){
+	return *(int*)integer->thing;
+}
+
+char * getString(struct Entity * string){
+	return (char*)string->thing;
+}
+
 void printEntity(struct Entity * e, int indent) {
-	for(int i = 0; i < indent; i++)printf(" ");
+	for(int i = 0; i < indent; i++)printw(" ");
 	switch(e->type) {
 		case INTEGER: printInteger(e);return;
-		case STRING: printf("%s : %s\n", e->name, (char*)e->thing);return;
+		case STRING: printw("%s : %s\n", e->name, getString(e));return;
 		case INSTANCE: printInstance(e, indent + 1);return;
-		case ENTITY: printf("%s refers to:\n", e->name);printEntity(e->thing, indent + 1);return;
+		case ENTITY: printw("%s refers to:\n", e->name);printEntity(getEntity(e), indent + 1);return;
 
-		case NULL_entity: printf("%s : %p (null type)\n", e->name, e->thing);
+		case NULL_entity: printw("%s : %p (null type)\n", e->name, e->thing);
 	}
-	printf("%s : %p (unknown type)\n", e->name, e->thing);
+	printw("%s : %p (unknown type)\n", e->name, e->thing);
 }
 
 void binitEntity(struct Entity * e) {
-	DEBUG printf("Bining %s\n", e->name);
+	DEBUG printw("Bining %s\n", e->name);
 	if (e->type == INSTANCE) binitInstance(e);
 	if (e->type == ENTITY) {
-		binitEntity(e->thing);
+		binitEntity(getEntity(e));
 	} else {
 		free(e->thing);
 	}
@@ -64,11 +76,11 @@ struct Entity * initInteger(int i, char * name) {
 
 void changeInteger(struct Entity * e, int amount) {
 	(*(int*)e->thing) += amount;
-	printf("%s now %d\n", e->name, (*(int*)e->thing));
+	printw("%s now %d\n", e->name, (*(int*)e->thing));
 }
 
 void printInteger(struct Entity * e) {
-	printf("%s : %d\n", e->name, *(int*)e->thing);
+	printw("%s : %d\n", e->name, getInteger(e));
 }
 
 struct Entity * initString(char * value, char * name) {
@@ -124,7 +136,7 @@ int getInstanceVariableIndex(struct Entity * e, char * name) {
 			return i;
 		}
 	}
-	// DEBUG printf("WARNING: Could not find '%s' in '%s'\n", name, e->name);
+	// DEBUG printw("WARNING: Could not find '%s' in '%s'\n", name, e->name);
 	return -1;
 }
 
@@ -133,7 +145,7 @@ char isPropertiesSubset(struct Entity * a, struct Entity * b) {
 	if (a && b && a->type == INSTANCE && b->type == INSTANCE) {
 		return 1;
 	} else {
-		DEBUG printf("WARNING: isPropertiesSubset(%p, %p) failed\n", a, b);
+		DEBUG printw("WARNING: isPropertiesSubset(%p, %p) failed\n", a, b);
 		return 0;
 	}
 }
@@ -163,7 +175,7 @@ char isEntityEqual(struct Entity * a, struct Entity * b) {
 			return true;
 
 		} else if (a->type == STRING) {
-			// DEBUG printf("comparing %s with %s\n", (char*)a->thing, (char*)b->thing);
+			// DEBUG printw("comparing %s with %s\n", (char*)a->thing, (char*)b->thing);
 			return strcmp((char*)a->thing, (char*)b->thing) == 0;
 		} else if (a->type == INTEGER) {
 			return *(int*)a->thing == *(int*)b->thing;
@@ -173,6 +185,9 @@ char isEntityEqual(struct Entity * a, struct Entity * b) {
 }
 
 char hasInstanceVariables(struct Entity * a) {
+	/**
+	Returns true if an Instance has a variable that isn't null.
+	**/
 	int n = *(int*)((struct Entity **)a->thing)[0]->thing;
 	for (int i = 1; i < n; ++i) {
 		if (getInstanceVariableByIndex(a, i)->thing) return 1;
@@ -181,7 +196,8 @@ char hasInstanceVariables(struct Entity * a) {
 }
 
 struct Entity * searchInstanceForRequirement(struct Entity * haystack, struct Entity * needle) {
-	// DEBUG printf("Looking for %s in %s\n", haystack->name, needle->name);
+	/** Returns the entity equal to needle in haystack if
+	it can be found. Equality is nested/deep. **/
 	int n = *(int*)((struct Entity **)haystack->thing)[0]->thing;
 	for (int i = 0; i < n; ++i) {
 		struct Entity * var = getInstanceVariableByIndex(haystack, i);
@@ -190,21 +206,67 @@ struct Entity * searchInstanceForRequirement(struct Entity * haystack, struct En
 			return var;
 		}
 	}
-	// DEBUG printf("WARNING: Could not find '%s' in '%s'\n", needle->name, haystack->name);
 	return 0;
 }
 
+char canSetInstance(struct Entity * instance, struct Entity * instanceProps) {
+	/** Returns true if all of the variables within instanceProps
+	exist within instance once.**/
+	int n = *(int*)((struct Entity **)instanceProps->thing)[0]->thing;
+
+	for (int i = 1; i < n; ++i) {
+		struct Entity * newValue = getInstanceVariableByIndex(instanceProps, i);
+
+		if (newValue && newValue->thing) {
+			struct Entity * oldValue = getInstanceVariableByName(instance, newValue->name);
+
+			if (!oldValue) {
+				return 0;
+			}
+		} else {
+			break;
+		}
+	}
+	return 1;
+}
+
+void setInstance(struct Entity * instance, struct Entity * instanceProps) {
+	/** instance and instanceProps are both instances. It is assumed
+	that instanceProps has a subset of variables that instance has **/
+	int n = *(int*)getInstanceVariableByName(instanceProps, "n_variables")->thing;
+	for (int i = 1; i < n; ++i) {
+		struct Entity * newValue = getInstanceVariableByIndex(instanceProps, i);
+		
+		if (newValue && newValue->thing) {
+			struct Entity * oldValue = getInstanceVariableByName(instance, newValue->name);
+
+			if (oldValue) {
+				free(oldValue->thing); // Destructive - prevent memory leak?
+
+				oldValue->thing = newValue->thing;
+			} else {
+				// Couldn't find the variable to set - ignore (this should be prevented by canSetInstance)
+			}
+		} else {
+			break; //No more variables to set in instanceProps
+		}
+	}
+}
+
 void printInstance(struct Entity * e, int indent) {
-	printf("%s:\n", e->name);
+	printw("%s:\n", e->name);
+	refresh();
 	int n = *(int*)getInstanceVariableByName(e, "n_variables")->thing;
 	for (int i = 0; i < n; ++i) {
 		struct Entity * a = getInstanceVariableByIndex(e, i);
 		if (a && a->thing) {
 			printEntity(a, indent + 1);
+			refresh();
 		}
 	}
-	for(int i = 0; i < indent/2; i++)printf(" ");
-	printf(":%s\n", e->name);
+	for(int i = 0; i < indent/2; i++)printw(" ");
+	printw(":%s\n", e->name);
+	refresh();
 }
 
 int firstAvailableIndex(struct Entity * e) {
@@ -223,7 +285,7 @@ void addVarToInstance(struct Entity * e, struct Entity * var) {
 	if (i != -1) {
 		setInstanceVariableByIndex(e, var, i);
 	} else {
-		DEBUG printf("WARNING: addVarToInstance failed - no available slots\n");
+		DEBUG printw("WARNING: addVarToInstance failed - no available slots\n");
 	}
 }
 
