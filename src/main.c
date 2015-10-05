@@ -407,7 +407,9 @@ int readSentence(struct Sentence * s,
 	s = s + current;
 
 	if (s->text == 0) {
-		printf("WARNING: Trying to go to non-instantiated sentence.\n");
+		printw("WARNING: Trying to go to non-instantiated sentence on line %d.\n", current);
+		sleep(1);
+		return readSentence(s + 1, 0, inventory, input, vp);
 	}
 
 	struct Tempo typical;
